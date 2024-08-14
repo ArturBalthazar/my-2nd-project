@@ -1,102 +1,104 @@
+console.log("main.js is loaded");
+
 const canvas = document.getElementById('renderCanvas');
 const engine = new BABYLON.Engine(canvas, true);
-const scene = new BABYLON.Scene(engine);
 
-// Create a basic light and camera
-const camera = new BABYLON.FreeCamera('camera1', new BABYLON.Vector3(0, 10, -20), scene);
-camera.setTarget(BABYLON.Vector3.Zero());
-camera.attachControl(canvas, true);
+const createScene = () => {
+    const scene = new BABYLON.Scene(engine);
+    const camera = new BABYLON.ArcRotateCamera('camera1', Math.PI / 2, Math.PI / 4, 20, BABYLON.Vector3.Zero(), scene);
+    camera.attachControl(canvas, true);
 
-const light = new BABYLON.HemisphericLight('light1', new BABYLON.Vector3(1, 1, 0), scene);
+    const light = new BABYLON.HemisphericLight('light1', new BABYLON.Vector3(0, 1, 0), scene);
+    light.intensity = 0.7;
 
-// Create a giant plane for the ground
-const ground = BABYLON.MeshBuilder.CreateGround('ground', { width: 200, height: 200 }, scene);
+    // Create a ground plane
+    const ground = BABYLON.MeshBuilder.CreateGround("ground", { width: 50, height: 50 }, scene);
 
-// Store avatars
-let avatars = {};
+    // Create a sphere as the "avatar"
+    const avatar = BABYLON.MeshBuilder.CreateSphere("avatar", { diameter: 2 }, scene);
+    avatar.position.y = 1;
 
-// Connect to the server
-const socket = io();
+    // Movement variables
+    let moveForward = false;
+    let moveBackward = false;
+    let moveLeft = false;
+    let moveRight = false;
 
-// Create your avatar
-const avatar = BABYLON.MeshBuilder.CreateSphere('avatar', { diameter: 2 }, scene);
-avatar.position.y = 1;
-
-// Handle movement keys
-let moveDirection = { x: 0, z: 0 };
-window.addEventListener('keydown', (event) => {
-    switch (event.key) {
-        case 'w': moveDirection.z = 1; break;
-        case 's': moveDirection.z = -1; break;
-        case 'a': moveDirection.x = -1; break;
-        case 'd': moveDirection.x = 1; break;
-    }
-});
-window.addEventListener('keyup', (event) => {
-    switch (event.key) {
-        case 'w':
-        case 's': moveDirection.z = 0; break;
-        case 'a':
-        case 'd': moveDirection.x = 0; break;
-    }
-});
-
-// Mobile controls
-document.getElementById('up').addEventListener('touchstart', () => moveDirection.z = 1);
-document.getElementById('down').addEventListener('touchstart', () => moveDirection.z = -1);
-document.getElementById('left').addEventListener('touchstart', () => moveDirection.x = -1);
-document.getElementById('right').addEventListener('touchstart', () => moveDirection.x = 1);
-
-document.getElementById('up').addEventListener('touchend', () => moveDirection.z = 0);
-document.getElementById('down').addEventListener('touchend', () => moveDirection.z = 0);
-document.getElementById('left').addEventListener('touchend', () => moveDirection.x = 0);
-document.getElementById('right').addEventListener('touchend', () => moveDirection.x = 0);
-
-// Update the avatar's position and send it to the server
-engine.runRenderLoop(() => {
-    const speed = 0.1;
-    avatar.position.x += moveDirection.x * speed;
-    avatar.position.z += moveDirection.z * speed;
-
-    socket.emit('move', { x: avatar.position.x, y: avatar.position.z });
-
-    scene.render();
-});
-
-// Handle new clients
-socket.on('newClient', (data) => {
-    const newAvatar = BABYLON.MeshBuilder.CreateSphere(`avatar_${data.id}`, { diameter: 2 }, scene);
-    newAvatar.position.x = data.position.x;
-    newAvatar.position.z = data.position.y;
-    avatars[data.id] = newAvatar;
-});
-
-// Handle existing clients when connecting
-socket.on('currentClients', (clients) => {
-    for (let id in clients) {
-        if (id !== socket.id) {
-            const newAvatar = BABYLON.MeshBuilder.CreateSphere(`avatar_${id}`, { diameter: 2 }, scene);
-            newAvatar.position.x = clients[id].x;
-            newAvatar.position.z = clients[id].y;
-            avatars[id] = newAvatar;
+    // Handle keyboard input
+    window.addEventListener("keydown", (event) => {
+        switch (event.key) {
+            case 'w':
+            case 'ArrowUp':
+                moveForward = true;
+                break;
+            case 's':
+            case 'ArrowDown':
+                moveBackward = true;
+                break;
+            case 'a':
+            case 'ArrowLeft':
+                moveLeft = true;
+                break;
+            case 'd':
+            case 'ArrowRight':
+                moveRight = true;
+                break;
         }
-    }
-});
+    });
 
-// Handle movement from other clients
-socket.on('move', (data) => {
-    if (avatars[data.id]) {
-        avatars[data.id].position.x = data.position.x;
-        avatars[data.id].position.z = data.position.y;
-    }
-});
+    window.addEventListener("keyup", (event) => {
+        switch (event.key) {
+            case 'w':
+            case 'ArrowUp':
+                moveForward = false;
+                break;
+            case 's':
+            case 'ArrowDown':
+                moveBackward = false;
+                break;
+            case 'a':
+            case 'ArrowLeft':
+                moveLeft = false;
+                break;
+            case 'd':
+            case 'ArrowRight':
+                moveRight = false;
+                break;
+        }
+    });
 
-// Handle client disconnect
-socket.on('removeClient', (id) => {
-    if (avatars[id]) {
-        avatars[id].dispose();
-        delete avatars[id];
-    }
+    // Handle button input
+    document.getElementById('upButton').addEventListener('mousedown', () => moveForward = true);
+    document.getElementById('upButton').addEventListener('mouseup', () => moveForward = false);
+    document.getElementById('downButton').addEventListener('mousedown', () => moveBackward = true);
+    document.getElementById('downButton').addEventListener('mouseup', () => moveBackward = false);
+    document.getElementById('leftButton').addEventListener('mousedown', () => moveLeft = true);
+    document.getElementById('leftButton').addEventListener('mouseup', () => moveLeft = false);
+    document.getElementById('rightButton').addEventListener('mousedown', () => moveRight = true);
+    document.getElementById('rightButton').addEventListener('mouseup', () => moveRight = false);
+
+    scene.onBeforeRenderObservable.add(() => {
+        if (moveForward) {
+            avatar.position.z -= 0.1;
+        }
+        if (moveBackward) {
+            avatar.position.z += 0.1;
+        }
+        if (moveLeft) {
+            avatar.position.x -= 0.1;
+        }
+        if (moveRight) {
+            avatar.position.x += 0.1;
+        }
+    });
+
+    return scene;
+};
+
+const scene = createScene();
+
+engine.runRenderLoop(() => {
+    scene.render();
 });
 
 window.addEventListener('resize', () => {
