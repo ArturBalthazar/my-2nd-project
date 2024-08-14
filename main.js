@@ -80,11 +80,6 @@ const createScene = function () {
             0,
             Math.cos(avatar.rotation.y)
         );
-        let right = new BABYLON.Vector3(
-            Math.sin(avatar.rotation.y + Math.PI / 2),
-            0,
-            Math.cos(avatar.rotation.y + Math.PI / 2)
-        );
 
         if (inputMap["w"]) {
             avatar.moveWithCollisions(forward.scale(5 * deltaTime));
@@ -93,11 +88,14 @@ const createScene = function () {
             avatar.moveWithCollisions(forward.scale(-5 * deltaTime));
         }
         if (inputMap["a"]) {
-            avatar.moveWithCollisions(right.scale(-5 * deltaTime));
+            avatar.rotation.y -= 1 * deltaTime; // Rotate left
         }
         if (inputMap["d"]) {
-            avatar.moveWithCollisions(right.scale(5 * deltaTime));
+            avatar.rotation.y += 1 * deltaTime; // Rotate right
         }
+
+        // Make the camera follow the avatar's rotation
+        camera.rotationOffset = -BABYLON.Tools.ToDegrees(avatar.rotation.y);
 
         // Check if the avatar is falling off the plane
         if (avatar.position.y < -10) {
